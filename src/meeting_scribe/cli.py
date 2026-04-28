@@ -1,13 +1,26 @@
 import time
 
+import questionary
 import typer
 
 from . import audio, pipeline
+from .summarize import TEMPLATES
 
 app = typer.Typer(
     help="Record, transcribe, diarize, and summarize meetings — locally.",
     no_args_is_help=True,
 )
+
+
+def _pick_template_interactively() -> str:
+    choice = questionary.select(
+        "Meeting type:",
+        choices=list(TEMPLATES.keys()),
+        default="default",
+    ).ask()
+    if choice is None:
+        raise typer.Exit(1)
+    return choice
 
 
 @app.command()
@@ -18,12 +31,25 @@ def start(
         "Defaults to the current HHMM, so the output file becomes "
         "YYYY-MM-DD-HHMM.md.",
     ),
+    template: str = typer.Option(
+        None,
+        "--template",
+        "-t",
+        help=f"Meeting template ({', '.join(TEMPLATES)}). "
+        "If omitted, you'll be prompted interactively.",
+    ),
 ) -> None:
     """Begin recording mic + desktop audio."""
     if not slug:
         slug = time.strftime("%H%M")
-    session = audio.start(slug)
-    typer.echo(f"Recording started: {session['id']} ({slug})")
+    if template is None:
+        template = _pick_template_interactively()
+    elif template not in TEMPLATES:
+        raise typer.BadParameter(
+            f"Unknown template '{template}'. Valid: {', '.join(TEMPLATES)}"
+        )
+    session = audio.start(slug, template=template)
+    typer.echo(f"Recording started: {session['id']} ({slug}, template={template})")
     typer.echo(f"  mic     -> {session['mic_path']}")
     typer.echo(f"  desktop -> {session['desktop_path']}")
     typer.echo("Run `meeting-scribe stop` when done.")
@@ -46,12 +72,27 @@ def process(
     slug: str = typer.Option(
         None, "--slug", help="Override the slug used for the output filename."
     ),
+    template: str = typer.Option(
+        None,
+        "--template",
+        "-t",
+        help=f"Override the template for this re-process ({', '.join(TEMPLATES)}).",
+    ),
 ) -> None:
     """Re-run transcribe + diarize + summarize against a previously recorded session."""
     session = audio.load_session(session_id)
     if slug:
         session["slug"] = slug
-    typer.echo(f"Processing session: {session['id']} ({session.get('slug')})")
+    if template is not None:
+        if template not in TEMPLATES:
+            raise typer.BadParameter(
+                f"Unknown template '{template}'. Valid: {', '.join(TEMPLATES)}"
+            )
+        session["template"] = template
+    typer.echo(
+        f"Processing session: {session['id']} ({session.get('slug')}, "
+        f"template={session.get('template', 'default')})"
+    )
     pipeline.process(session)
 
 

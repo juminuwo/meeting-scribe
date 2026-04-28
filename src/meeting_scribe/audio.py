@@ -31,7 +31,7 @@ def _spawn_ffmpeg(source: str, out_path: Path, channels: int) -> subprocess.Pope
     )
 
 
-def start(slug: str) -> dict:
+def start(slug: str, template: str = "default") -> dict:
     if SESSION_FILE.exists():
         raise RuntimeError(
             f"Recording already in progress (state file: {SESSION_FILE}). "
@@ -54,6 +54,7 @@ def start(slug: str) -> dict:
     session = {
         "id": session_id,
         "slug": slug,
+        "template": template,
         "started_at": time.time(),
         "mic_pid": mic_proc.pid,
         "desktop_pid": desktop_proc.pid,

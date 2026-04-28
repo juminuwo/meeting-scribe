@@ -47,8 +47,12 @@ def process(session: dict) -> Path:
     combined = merge.merge_streams(mic_segments, desktop_segments)
     transcript_text = _format_transcript(combined)
 
-    print("Summarizing via `claude -p`...")
-    summary = summarize.summarize(transcript_text)
+    template = session.get("template", "default")
+    participants = sorted({s["speaker"] for s in combined})
+    print(f"Summarizing via `claude -p` (template: {template})...")
+    summary = summarize.summarize(
+        transcript_text, template=template, participants=participants
+    )
 
     today = date.today().isoformat()
     slug = _slugify(session["slug"])
