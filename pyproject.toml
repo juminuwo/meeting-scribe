@@ -1,0 +1,28 @@
+[project]
+name = "meeting-scribe"
+version = "0.1.0"
+description = "Local pipeline: record mic + desktop audio, transcribe with faster-whisper, diarize with pyannote, summarize via Claude Code."
+authors = [
+    { name = "Adrian Liu", email = "adrianliu95@protonmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "faster-whisper>=1.2.1",
+    "nvidia-cublas-cu12>=12.9.2.10",
+    "nvidia-cudnn-cu12>=9,<10",
+    "pyannote-audio>=3.1",
+    "python-dotenv>=1.2.2",
+    "typer>=0.25.0",
+]
+
+[project.scripts]
+meeting-scribe = "meeting_scribe.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.11,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
