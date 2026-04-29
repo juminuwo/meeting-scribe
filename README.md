@@ -87,6 +87,7 @@ meeting-scribe start              # arrow-key picker for template, slug = HHMM
 meeting-scribe start --template 1on1
 meeting-scribe start "weekly sync" -t default
 meeting-scribe stop               # ends recording, runs the full pipeline
+meeting-scribe cancel             # abort in-progress recording, discard the audio
 meeting-scribe process            # re-run pipeline against the latest session
 meeting-scribe process <id> -t 1on1   # re-summarize a specific session under another template
 ```
@@ -133,8 +134,8 @@ points at a sink monitor (recording your speakers, not your mic). Use
 
 A separate block script lives in the dotfiles repo. It shows 🎙 when idle,
 🔴 while recording, ⏳ while the pipeline runs. Right-click cycles through
-state-aware rofi/dmenu menus to start (with template picker) or stop. State
-file: `~/.local/state/meeting-scribe/state`.
+state-aware rofi/dmenu menus to start (with template picker), stop, or cancel
+a recording. State file: `~/.local/state/meeting-scribe/state`.
 
 ## Project layout
 

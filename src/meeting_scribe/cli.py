@@ -64,6 +64,13 @@ def stop() -> None:
 
 
 @app.command()
+def cancel() -> None:
+    """Abort an in-progress recording and discard the captured audio."""
+    session = audio.cancel()
+    typer.echo(f"Recording cancelled and discarded: {session['id']}")
+
+
+@app.command()
 def process(
     session_id: str = typer.Argument(
         None,

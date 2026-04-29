@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import signal
 import subprocess
 import time
@@ -128,4 +129,29 @@ def stop() -> dict:
 
     SESSION_FILE.unlink()
     session["stopped_at"] = time.time()
+    return session
+
+
+def cancel() -> dict:
+    """Discard an in-progress recording: kill ffmpeg, drop the audio + state."""
+    if not SESSION_FILE.exists():
+        raise RuntimeError("No recording in progress.")
+
+    session = json.loads(SESSION_FILE.read_text())
+
+    for key in ("mic_pid", "desktop_pid"):
+        try:
+            os.kill(session[key], signal.SIGINT)
+        except ProcessLookupError:
+            pass
+
+    for key in ("mic_pid", "desktop_pid"):
+        _wait_for_exit(session[key])
+
+    session_dir = Path(session["session_dir"])
+    if session_dir.is_dir():
+        shutil.rmtree(session_dir)
+
+    SESSION_FILE.unlink()
+    session["cancelled_at"] = time.time()
     return session

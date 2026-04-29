@@ -39,6 +39,7 @@ meeting-scribe setup                  # interactive config wizard, writes .env
 meeting-scribe start                  # interactive template picker, slug = HHMM
 meeting-scribe start --template 1on1  # skip the picker
 meeting-scribe stop                   # finish + run pipeline + write to vault
+meeting-scribe cancel                 # abort in-progress recording, discard audio
 meeting-scribe process [session-id]   # rerun pipeline against existing audio
 meeting-scribe process -t 1on1        # re-summarize latest under a different template
 ```
@@ -111,8 +112,8 @@ The status-bar block lives in `endeavouros-dotfiles`, not in this repo:
 - State file: `~/.local/state/meeting-scribe/state` (`idle | recording | processing`)
 - Block log: `~/.local/state/meeting-scribe/block.log`
 
-Right-click cycles state-aware menus (rofi/dmenu) to start (template picker)
-or stop a recording. Glyphs: 🎙 / 🔴 / ⏳.
+Right-click cycles state-aware menus (rofi/dmenu) to start (template picker),
+stop, or cancel a recording. Glyphs: 🎙 / 🔴 / ⏳.
 
 ## Decisions log
 
