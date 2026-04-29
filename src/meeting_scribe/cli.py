@@ -3,7 +3,7 @@ import time
 import questionary
 import typer
 
-from . import audio, pipeline
+from . import audio, pipeline, wizard
 from .summarize import TEMPLATES
 
 app = typer.Typer(
@@ -94,6 +94,12 @@ def process(
         f"template={session.get('template', 'default')})"
     )
     pipeline.process(session)
+
+
+@app.command()
+def setup() -> None:
+    """Interactive configuration wizard — writes to .env."""
+    wizard.run()
 
 
 def main() -> None:
