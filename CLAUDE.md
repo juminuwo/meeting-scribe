@@ -42,6 +42,10 @@ meeting-scribe stop                   # finish + run pipeline + write to vault
 meeting-scribe cancel                 # abort in-progress recording, discard audio
 meeting-scribe process [session-id]   # rerun pipeline against existing audio
 meeting-scribe process -t 1on1        # re-summarize latest under a different template
+meeting-scribe status                 # idle | recording | crashed + crashed count
+meeting-scribe crashed [--json]       # list crashed (auto-detected) recordings
+meeting-scribe recover <id>           # run pipeline on one crashed recording
+meeting-scribe recover --all          # run pipeline on every crashed recording
 ```
 
 `meeting-scribe` is also installed globally as `~/.local/bin/meeting-scribe`
@@ -69,6 +73,28 @@ Per meeting:
 - Markdown: `<VAULT_DIR>/YYYY-MM-DD-<slug>.md` with `# Summary` + `# Transcript`
 - Audio archive: `~/.local/state/meeting-scribe/audio/<session-id>/{mic,desktop}.wav`
 - Session metadata: `<session-dir>/session.json` (slug, template, paths)
+
+## Crash recovery
+
+A "crashed" recording is one where ffmpeg died before the user invoked
+`stop` (OOM, audio device disconnect, power loss, forgotten across a reboot,
+etc.). Detection is on-demand: any time `session_status()` runs, it checks
+the PIDs in `current.json` and classifies as `idle | recording | crashed`.
+
+When `start` runs against a crashed state, the abandoned `current.json` is
+auto-moved to `~/.local/state/meeting-scribe/crashed/<session-id>.json` and
+the new recording proceeds. The audio under `audio/<session-id>/` stays put.
+
+Crashed recordings are processed manually via `meeting-scribe recover`
+(per-id or `--all`) — pipeline runs are heavy (whisper + pyannote +
+`claude -p`), so we don't auto-drain on `start` to avoid GPU contention.
+A successful recover deletes the crashed file; a failed recover leaves it
+in place so the next call retries.
+
+The i3blocks block (in `endeavouros-dotfiles`) shells out to
+`meeting-scribe crashed --json` each tick. When the count is non-zero, the
+right-click menu offers `Record` and `Process crashed (N)` — the latter
+opens a submenu listing each crashed session plus a `Process all` row.
 
 ## Speaker labeling
 
@@ -109,11 +135,13 @@ The status-bar block lives in `endeavouros-dotfiles`, not in this repo:
 
 - Block script: `~/.config/i3/scripts/meeting-scribe-block`
 - i3blocks config entry: `[meeting_scribe]` in `~/.config/i3/i3blocks.conf` (signal 14)
-- State file: `~/.local/state/meeting-scribe/state` (`idle | recording | processing`)
+- State file: `~/.local/state/meeting-scribe/state` (`idle | recording | processing | crashed`)
 - Block log: `~/.local/state/meeting-scribe/block.log`
 
 Right-click cycles state-aware menus (rofi/dmenu) to start (template picker),
-stop, or cancel a recording. Glyphs: 🎙 / 🔴 / ⏳.
+stop, or cancel a recording. When crashed sessions are queued, the idle
+menu surfaces `Record` and `Process crashed (N)` (which opens a submenu of
+ids + a `Process all` row). Glyphs: 🎙 / 🔴 / ⏳ / ⚠.
 
 ## Decisions log
 

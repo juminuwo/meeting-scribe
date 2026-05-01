@@ -23,6 +23,7 @@ VAULT_DIR = Path(
 
 STATE_DIR = Path.home() / ".local" / "state" / "meeting-scribe"
 AUDIO_DIR = STATE_DIR / "audio"
+CRASHED_DIR = STATE_DIR / "crashed"
 SESSION_FILE = STATE_DIR / "current.json"
 
 WHISPER_MODEL = os.environ.get("MEETING_SCRIBE_WHISPER_MODEL", "large-v3")

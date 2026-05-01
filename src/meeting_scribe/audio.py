@@ -6,7 +6,14 @@ import subprocess
 import time
 from pathlib import Path
 
-from .config import AUDIO_DIR, MIC_SOURCE, SAMPLE_RATE, SESSION_FILE, STATE_DIR
+from .config import (
+    AUDIO_DIR,
+    CRASHED_DIR,
+    MIC_SOURCE,
+    SAMPLE_RATE,
+    SESSION_FILE,
+    STATE_DIR,
+)
 
 
 def get_default_sink() -> str:
@@ -32,12 +39,81 @@ def _spawn_ffmpeg(source: str, out_path: Path, channels: int) -> subprocess.Pope
     )
 
 
-def start(slug: str, template: str = "default") -> dict:
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def session_status() -> tuple[str, dict | None]:
+    """Return ("idle"|"recording"|"crashed", session_or_None).
+
+    A session is "crashed" when current.json exists but at least one of its
+    ffmpeg PIDs is no longer running — i.e. the recording stopped without
+    the user invoking `stop`.
+    """
+    if not SESSION_FILE.exists():
+        return "idle", None
+    session = json.loads(SESSION_FILE.read_text())
+    mic_alive = _pid_alive(session.get("mic_pid", -1))
+    desktop_alive = _pid_alive(session.get("desktop_pid", -1))
+    if mic_alive and desktop_alive:
+        return "recording", session
+    return "crashed", session
+
+
+def _move_to_crashed(session: dict) -> Path:
+    """Kill any survivor ffmpeg, move current.json into crashed/, return new path."""
+    for key in ("mic_pid", "desktop_pid"):
+        try:
+            os.kill(session[key], signal.SIGINT)
+        except (ProcessLookupError, KeyError):
+            pass
+    for key in ("mic_pid", "desktop_pid"):
+        try:
+            _wait_for_exit(session[key])
+        except KeyError:
+            pass
+
+    CRASHED_DIR.mkdir(parents=True, exist_ok=True)
+    crashed_path = CRASHED_DIR / f"{session['id']}.json"
+    crashed_path.write_text(json.dumps(session, indent=2))
     if SESSION_FILE.exists():
+        SESSION_FILE.unlink()
+    return crashed_path
+
+
+def list_crashed() -> list[dict]:
+    """All crashed session metadata, oldest first."""
+    if not CRASHED_DIR.is_dir():
+        return []
+    out = []
+    for path in sorted(CRASHED_DIR.iterdir()):
+        if path.suffix != ".json":
+            continue
+        out.append(json.loads(path.read_text()))
+    return out
+
+
+def pop_crashed(session_id: str) -> None:
+    path = CRASHED_DIR / f"{session_id}.json"
+    if path.exists():
+        path.unlink()
+
+
+def start(slug: str, template: str = "default") -> dict:
+    status, session = session_status()
+    if status == "recording":
         raise RuntimeError(
             f"Recording already in progress (state file: {SESSION_FILE}). "
-            "Run `meeting-scribe stop` first, or delete the file if it's stale."
+            "Run `meeting-scribe stop` first."
         )
+    if status == "crashed" and session is not None:
+        _move_to_crashed(session)
 
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     session_id = time.strftime("%Y-%m-%d-%H%M%S")
