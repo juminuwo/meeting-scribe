@@ -2,7 +2,7 @@
 
 Local pipeline: records mic + desktop audio, transcribes both tracks with
 faster-whisper on CUDA, diarizes the desktop track with pyannote, and writes
-a summary (via headless `claude -p`) + speaker-labeled transcript into the
+a summary (via headless `codex exec`) + speaker-labeled transcript into the
 Obsidian vault.
 
 ## Stack
@@ -13,7 +13,7 @@ Obsidian vault.
 - **ffmpeg** + PipeWire (via the pulse compat layer) for audio capture
 - **faster-whisper** (default `large-v3`, CUDA float16) for transcription
 - **pyannote.audio 3.1** for speaker diarization on the desktop track
-- **`claude -p`** (headless Claude Code, Max plan) for the post-meeting summary
+- **`codex exec`** (headless Codex CLI) for the post-meeting summary
 
 ## Module layout
 
@@ -26,7 +26,7 @@ src/meeting_scribe/
   transcribe.py     faster-whisper wrapper (lazy model load)
   diarize.py        pyannote pipeline wrapper (lazy + CUDA)
   merge.py          overlap-based speaker assignment, stream merge
-  summarize.py      TEMPLATES + _build_prompt + claude -p subprocess
+  summarize.py      TEMPLATES + _build_prompt + codex exec subprocess
   pipeline.py       post-stop orchestrator (transcribe → diarize → summarize)
   wizard.py         interactive `setup` flow
   cli.py            typer app + entry point
@@ -87,7 +87,7 @@ the new recording proceeds. The audio under `audio/<session-id>/` stays put.
 
 Crashed recordings are processed manually via `meeting-scribe recover`
 (per-id or `--all`) — pipeline runs are heavy (whisper + pyannote +
-`claude -p`), so we don't auto-drain on `start` to avoid GPU contention.
+`codex exec`), so we don't auto-drain on `start` to avoid GPU contention.
 A successful recover deletes the crashed file; a failed recover leaves it
 in place so the next call retries.
 
@@ -126,7 +126,7 @@ uv run pytest -q
 
 Cover pure-logic modules: `merge`, `pipeline` helpers, `audio.load_session`,
 `summarize._build_prompt`, `wizard._parse_mic_sources` / `_suggest_whisper`.
-The heavy modules (`transcribe`, `diarize`, the actual `claude -p` call) are
+The heavy modules (`transcribe`, `diarize`, the actual `codex exec` call) are
 intentionally not tested — they need real models or the live CLI.
 
 ## i3blocks integration
@@ -149,8 +149,8 @@ ids + a `Process all` row). Glyphs: 🎙 / 🔴 / ⏳ / ⚠.
   free self-vs-other split, halves the diarization problem.
 - **Lazy model load** in `transcribe`/`diarize` so `start` returns fast;
   whisper + pyannote only initialize when `stop` runs.
-- **Headless Claude Code** for summarization (Max plan, no API key). The
-  transcript is piped via stdin to `claude -p <prompt>`.
+- **Headless Codex CLI** for summarization. The transcript is piped via stdin
+  to `codex exec <prompt>`.
 - **Default slug = HHMM** (not "untitled"). Output file already prepends the
   date, so the slug only needs to disambiguate within a day.
 - **Explicit `MIC_SOURCE`** instead of `pulse:default` — the system default
@@ -181,4 +181,4 @@ ids + a `Process all` row). Glyphs: 🎙 / 🔴 / ⏳ / ⚠.
   `$mod+Shift+r` to restart i3 in place).
 - **PATH in non-interactive contexts** (i3blocks, cron, systemd) does not
   include `~/.local/bin`. The global wrapper at `~/.local/bin/meeting-scribe`
-  exports it before invoking `uv run` so `uv` and `claude` both resolve.
+  exports it before invoking `uv run` so `uv` and `codex` both resolve.

@@ -49,7 +49,7 @@ def process(session: dict) -> Path:
 
     template = session.get("template", "default")
     participants = sorted({s["speaker"] for s in combined})
-    print(f"Summarizing via `claude -p` (template: {template})...")
+    print(f"Summarizing via `codex exec` (template: {template})...")
     summary = summarize.summarize(
         transcript_text, template=template, participants=participants
     )

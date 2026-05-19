@@ -1,4 +1,6 @@
 import subprocess
+import tempfile
+from pathlib import Path
 
 TEMPLATES: dict[str, list[tuple[str, str]]] = {
     "default": [
@@ -53,15 +55,42 @@ def summarize(
     participants: list[str] | None = None,
 ) -> str:
     prompt = _build_prompt(template, participants or [])
+    with tempfile.NamedTemporaryFile(
+        prefix="meeting-scribe-summary-", suffix=".md", delete=False
+    ) as output_file:
+        output_path = Path(output_file.name)
+
     result = subprocess.run(
-        ["claude", "-p", prompt],
+        [
+            "codex",
+            "exec",
+            "--sandbox",
+            "read-only",
+            "--skip-git-repo-check",
+            "--ephemeral",
+            "--color",
+            "never",
+            "--output-last-message",
+            str(output_path),
+            prompt,
+        ],
         input=transcript,
         capture_output=True,
         text=True,
         check=False,
     )
+    try:
+        summary = output_path.read_text().strip()
+    finally:
+        output_path.unlink(missing_ok=True)
+
     if result.returncode != 0:
         raise RuntimeError(
-            f"`claude -p` failed (exit {result.returncode}):\n{result.stderr}"
+            f"`codex exec` failed (exit {result.returncode}):\n{result.stderr}"
         )
-    return result.stdout.strip()
+    if not summary:
+        raise RuntimeError(
+            "`codex exec` produced no summary.\n"
+            f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}"
+        )
+    return summary

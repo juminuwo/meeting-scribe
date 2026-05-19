@@ -4,12 +4,12 @@ Local, open-source meeting-notes pipeline for Linux: records mic + desktop
 audio, transcribes both tracks, separates speakers, and drops a summarized
 markdown file into your Obsidian vault. Everything runs on your own
 hardware — transcription with faster-whisper on CUDA, speaker diarization
-with pyannote, summary via Claude Code in headless mode.
+with pyannote, summary via Codex CLI in headless mode.
 
 ```text
 ┌──────────┐  ┌────────────┐  ┌────────────┐  ┌──────────┐
 │  mic.wav │─▶│  whisper   │─▶│   speaker  │─▶│ markdown │
-│ desk.wav │  │ transcribe │  │  alignment │  │  + claude│
+│ desk.wav │  │ transcribe │  │  alignment │  │  + codex │
 └──────────┘  └────────────┘  └────────────┘  │   summary│
      ▲             ▲                           └──────────┘
      │             │                                ▲
@@ -24,7 +24,7 @@ with pyannote, summary via Claude Code in headless mode.
 - **Transcribes both** with faster-whisper (`large-v3` by default).
 - **Diarizes the desktop track** with pyannote 3.1, so multiple remote
   participants are separated into "Other 1", "Other 2", etc.
-- **Summarizes** by piping the merged transcript to `claude -p` with a
+- **Summarizes** by piping the merged transcript to `codex exec` with a
   template-driven prompt (default or 1:1).
 - **Writes one markdown file** per meeting to your vault, with frontmatter,
   the summary, and the full timestamped transcript.
@@ -35,9 +35,8 @@ with pyannote, summary via Claude Code in headless mode.
 - NVIDIA GPU with ≥4 GB VRAM, recent driver, CUDA-capable wheels
 - `ffmpeg`, `pactl` on PATH
 - [`uv`](https://docs.astral.sh/uv/) for Python project management
-- [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) on PATH
-  (`claude -p` is what generates the summary; works with a Max plan, no API
-  key required)
+- [Codex CLI](https://github.com/openai/codex) on PATH
+  (`codex exec` is what generates the summary)
 - A HuggingFace account with read-token access to the gated pyannote models
 
 ## Install
@@ -106,7 +105,7 @@ Two ship today:
 
 To add a new one, edit `TEMPLATES` in `src/meeting_scribe/summarize.py`.
 Each template is a list of `(section title, section description)` tuples;
-the prompt builder injects them into the user message and Claude renders
+the prompt builder injects them into the user message and Codex renders
 them as h2 sections in order. The system rules (no preamble, no auto-
 Overview, skip empty sections instead of writing "None." filler) apply
 across all templates.
@@ -146,7 +145,7 @@ src/meeting_scribe/
   transcribe.py     faster-whisper wrapper
   diarize.py        pyannote wrapper
   merge.py          speaker assignment + stream merge
-  summarize.py      TEMPLATES + claude -p subprocess
+  summarize.py      TEMPLATES + codex exec subprocess
   pipeline.py       post-stop orchestrator
   wizard.py         `setup` interactive flow
   cli.py            typer app
@@ -160,10 +159,10 @@ tests/              pure-logic unit tests
 uv run pytest -q
 ```
 
-35 tests across `merge`, `pipeline` helpers, `audio.load_session`,
+57 tests across `merge`, `pipeline` helpers, `audio.load_session`,
 `summarize._build_prompt`, and `wizard._parse_mic_sources`/
 `_suggest_whisper`. The heavy paths (transcription, diarization, the live
-`claude -p` call) are deliberately not unit-tested.
+`codex exec` call) are deliberately not unit-tested.
 
 ## Troubleshooting
 
